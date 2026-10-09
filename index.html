@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APAP Animated Lower Third Studio</title>
+<style>
+:root{font-family:Inter,Arial,sans-serif;color:#eaf0ff;background:#101521}*{box-sizing:border-box}
+body{margin:0}header{padding:16px 22px;background:#1a2334;border-bottom:1px solid #364158}
+h1{margin:0;font-size:23px}header p{margin:5px 0;color:#b8c5d8}
+main{display:grid;grid-template-columns:325px minmax(0,1fr);gap:18px;padding:18px}
+aside{background:#1b2637;border-radius:12px;padding:16px;max-height:calc(100vh - 115px);overflow:auto}
+section{border-bottom:1px solid #3a485e;padding:0 0 14px;margin-bottom:14px}
+h2{font-size:15px;margin:4px 0 12px;color:#b9d3ff}
+label{display:block;font-size:12px;margin:10px 0 4px;color:#cbd6e9}
+input,select,button{font:inherit;color:white;border-radius:6px;border:1px solid #53647a;background:#26354b;padding:8px;max-width:100%}
+input:not([type=file]):not([type=color]):not([type=checkbox]),select{width:100%}
+input[type=color]{width:54px;height:34px;padding:2px;vertical-align:middle}
+input[type=range]{padding:0}button{cursor:pointer;background:#345d99;border-color:#476eac;margin:3px}
+button:hover{background:#477bc0}button:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+.stage{min-width:0}canvas{width:100%;display:block;border:1px solid #556275;border-radius:8px;touch-action:none;background:repeating-conic-gradient(#313b4a 0% 25%,#212b38 0% 50%) 50%/24px 24px}
+.hint{font-size:12px;color:#aebed3;line-height:1.5}
+#status{padding:12px;color:#a9e5c0;min-height:40px}.toolbar{margin:12px 0}
+@media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}}
+</style></head>
+<body><header><h1>APAP Lower Third Studio V8 — vMix Chroma Key Export</h1><p>Drag-and-drop photos and unlimited text, borders, shadows, animation and video export</p></header>
+<main><aside>
+<section><h2>Whole lower-third transform</h2>
+<p class="hint">Resize and move the entire composition together, including the banner, photos, logos, and text. Individual layers remain editable.</p>
+<label>Overall size: <output id="groupScaleValue">100%</output></label><input id="groupScale" type="range" min="20" max="200" step="1" value="100">
+<label>Horizontal position: <output id="groupXValue">0 px</output></label><input id="groupX" type="range" min="-960" max="960" step="1" value="0">
+<label>Vertical position: <output id="groupYValue">0 px</output></label><input id="groupY" type="range" min="-540" max="540" step="1" value="0">
+<div class="row"><button id="resetGroup">Reset size &amp; position</button></div>
+<p class="hint">The horizontal control moves everything left or right. Exports use the same positioning as the preview.</p>
+</section>
+<section><h2>Banner &amp; typography</h2>
+<label>Eyebrow</label><input id="eyebrow" value="ALL NEW">
+<label>Main headline</label><input id="headline" value="Sister Wives">
+<label>Bottom line</label><input id="subtitle" value="SUNDAYS 10p">
+<div class="row"><div><label>Banner color</label><input type="color" id="bannerColor" value="#b87832"></div><div><label>Accent color</label><input type="color" id="accentColor" value="#f1f25b"></div><div><label>Text color</label><input type="color" id="textColor" value="#ffffff"></div></div>
+<label>Banner corner style</label>
+<select id="cornerStyle">
+<option value="rounded">Rounded (classic)</option>
+<option value="square">Square / sharp</option>
+<option value="pill">Pill / fully rounded</option>
+<option value="cut">Cut / chamfered</option>
+<option value="bevel">Angled / asymmetric</option>
+<option value="topround">Rounded top only</option>
+<option value="bottomround">Rounded bottom only</option>
+<option value="custom">Custom corner radii</option>
+</select>
+<label>Corner size: <output id="cornerSizeValue">42 px</output></label>
+<input id="cornerSize" type="range" min="0" max="150" value="42">
+<div id="customCornerControls">
+<label>Top left</label><input id="cornerTL" type="range" min="0" max="150" value="42">
+<label>Top right</label><input id="cornerTR" type="range" min="0" max="150" value="42">
+<label>Bottom right</label><input id="cornerBR" type="range" min="0" max="150" value="42">
+<label>Bottom left</label><input id="cornerBL" type="range" min="0" max="150" value="42">
+</div>
+<label>Banner opacity</label><input type="range" id="opacity" min="0" max="100" value="95">
+<label>Headline size</label><input type="range" id="fontSize" min="35" max="130" value="79">
+<label>Banner vertical position</label><input type="range" id="bannerY" min="0" max="900" value="710">
+</section>
+<section><h2>Images &amp; layers</h2>
+<label>Upload photo / logo (PNG transparency supported)</label><input type="file" id="upload" accept="image/*" multiple>
+<label>Select layer</label><select id="layers"></select>
+<div class="row"><button id="front">Bring forward</button><button id="back">Send backward</button></div>
+<div class="row"><button id="remove">Remove selected</button><button id="duplicate">Duplicate</button></div>
+<label>Image scale</label><input type="range" id="scale" min="5" max="350" value="100">
+<label>Image rotation (degrees)</label><input type="range" id="rotation" min="-180" max="180" value="0">
+<label>Image opacity</label><input type="range" id="imageOpacity" min="0" max="100" value="100">
+<p class="hint">Drag an image anywhere on the canvas, including above or across the banner's top border. Images can extend beyond the banner; only the 1920 × 1080 canvas bounds are clipped. Use transparent PNGs for cutout portraits.</p>
+</section>
+<section><h2>Social media icons</h2>
+<label>Choose a platform</label><select id="socialPlatform">
+<option value="youtube">YouTube</option><option value="instagram">Instagram</option>
+<option value="facebook">Facebook</option><option value="tiktok">TikTok</option>
+<option value="twitch">Twitch</option><option value="linkedin">LinkedIn</option>
+<option value="x">X / Twitter</option><option value="website">Website</option>
+<option value="email">Email</option>
+</select>
+<label>Icon style</label><select id="socialStyle"><option value="brand">Brand-colored badge</option><option value="white">White on dark badge</option><option value="mono">Single-color icon</option></select>
+<label>Single-color icon color</label><input id="socialColor" type="color" value="#ffffff">
+<button id="addSocial">+ Insert social icon</button>
+<p class="hint">Icons are editable image layers: drag, resize, rotate, stack, animate and save them with the project. Add a separate text layer for @handles.</p>
+</section>
+<section><h2>Free-position text layers</h2>
+<label>New text</label><input id="newText" placeholder="Type your text here">
+<button id="addText">+ Add movable text</button>
+<label>Selected text content</label><input id="editText" placeholder="Select a text layer">
+<div class="row"><div><label>Text color</label><input type="color" id="layerTextColor" value="#ffffff"></div>
+<div><label>Border color</label><input type="color" id="layerStrokeColor" value="#000000"></div>
+<div><label>Shadow color</label><input type="color" id="layerShadowColor" value="#000000"></div></div>
+<label>Font size</label><input type="range" id="layerFontSize" min="12" max="220" value="72">
+<label>Font family</label><select id="layerFont"><option>Arial</option><option>Georgia</option><option>Impact</option><option>Verdana</option><option>Trebuchet MS</option></select>
+<label>Text outline thickness</label><input type="range" id="layerStroke" min="0" max="20" value="0">
+<label>Shadow blur</label><input type="range" id="layerShadow" min="0" max="45" value="0">
+<label>Shadow horizontal offset</label><input type="range" id="layerShadowX" min="-30" max="30" value="5">
+<label>Shadow vertical offset</label><input type="range" id="layerShadowY" min="-30" max="30" value="6">
+<p class="hint">Add unlimited independent text layers. Click and drag each text layer anywhere on the canvas, including above the banner.</p>
+</section>
+<section><h2>Banner border and shadow</h2>
+<label>Border thickness</label><input type="range" id="bannerStroke" min="0" max="30" value="3">
+<label>Border color</label><input type="color" id="bannerStrokeColor" value="#efcb83">
+<label>Banner shadow blur</label><input type="range" id="bannerShadow" min="0" max="60" value="16">
+</section>
+<section><h2>Independent layer animation</h2>
+<p class="hint">Select an image or text layer above, then set its individual entrance, timing, and exit. Each layer can animate separately.</p>
+<label>Layer entrance</label><select id="layerEntrance"><option value="inherit">Use global animation</option><option value="none">No entrance</option><option value="fade">Fade in</option><option value="left">Slide from left</option><option value="right">Slide from right</option><option value="up">Rise from bottom</option><option value="down">Drop from top</option><option value="zoom">Zoom in</option><option value="pop">Pop in</option></select>
+<label>Layer entrance start (seconds)</label><input id="layerStart" type="number" min="0" max="30" step=".1" value="0">
+<label>Layer entrance duration (seconds)</label><input id="layerInDuration" type="number" min=".1" max="10" step=".1" value=".7">
+<label>Layer exit</label><select id="layerExit"><option value="inherit">Use global animation</option><option value="none">No exit</option><option value="fade">Fade out</option><option value="left">Slide left</option><option value="right">Slide right</option><option value="up">Move up</option><option value="down">Move down</option><option value="zoom">Shrink away</option></select>
+<label>Layer exit start (seconds)</label><input id="layerExitStart" type="number" min="0" max="30" step=".1" value="5.3">
+<label>Layer exit duration (seconds)</label><input id="layerOutDuration" type="number" min=".1" max="10" step=".1" value=".7">
+<div class="row"><button id="applyAll">Copy timing to all layers</button><button id="resetLayerAnim">Reset selected animation</button></div>
+<label>Preview at specific time (seconds)</label><input id="scrub" type="range" min="0" max="6" step=".033333" value="0">
+<p class="hint" id="scrubLabel">0.00 s</p>
+</section>
+<section><h2>Animation</h2>
+<label>Entrance animation</label><select id="entrance"><option value="slide">Slide in from left</option><option value="rise">Rise from bottom</option><option value="fade">Fade in</option><option value="zoom">Zoom in</option><option value="none">None</option></select>
+<label>Exit animation</label><select id="exit"><option value="slide">Slide out right</option><option value="fade">Fade out</option><option value="drop">Drop down</option><option value="none">None</option></select>
+<label>Total video length (seconds)</label><input id="duration" type="number" min="2" max="30" step=".5" value="6">
+<label>Entrance / exit duration (seconds)</label><input id="transition" type="number" min=".1" max="3" step=".1" value=".7">
+<div class="row"><button id="play">▶ Preview animation</button><button id="stop">■ Stop</button></div>
+</section>
+<section><h2>Save &amp; export</h2>
+<label>vMix video background</label>
+<select id="videoBackground"><option value="green">Chroma-key green (recommended for vMix)</option><option value="blue">Chroma-key blue</option><option value="magenta">Chroma-key magenta</option><option value="transparent">Transparent canvas (alpha not guaranteed in video)</option></select>
+<div class="row"><button id="png">Export transparent PNG</button><button id="video">Export video</button></div>
+<p class="hint">Video export records at 1920 × 1080 / 30 fps. Choose chroma-key green for reliable vMix use, then apply vMix Colour Key to the video input. If your lower third contains green, choose blue or magenta instead. PNG exports always keep their transparent background. Transparent video alpha is NOT guaranteed by browser recording codecs.</p>
+<div class="row"><button id="save">Save project JSON</button><button id="load">Open project JSON</button><input id="projectFile" type="file" accept=".json,application/json" hidden></div>
+</section></aside>
+<div class="stage"><h2>1920 × 1080 preview</h2><canvas id="canvas" width="1920" height="1080"></canvas>
+<div class="toolbar row"><button id="reset">Reset example</button><label style="flex:3"><input id="guides" type="checkbox" checked> Show safe-area guides (not exported)</label></div>
+<div id="status">Ready. Upload an image and drag it to position.</div>
+<p class="hint">Tip: select an image by clicking it. Drag to move. Mouse wheel over selected image changes its scale. Images and text remain editable when you save a project.</p></div>
+</main>
+<script>
+(()=>{
+const c=document.getElementById('canvas'),ctx=c.getContext('2d'),$=id=>document.getElementById(id);
+let layers=[],selected=-1,drag=null,playing=false,raf=0,recording=false;
+const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','bannerY','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground'];
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+function bannerPath(x,y,w,h){
+let style=$('cornerStyle').value,r=+$('cornerSize').value;
+ctx.beginPath();
+if(style==='square'){ctx.rect(x,y,w,h);return}
+if(style==='pill'){ctx.roundRect(x,y,w,h,h/2);return}
+if(style==='rounded'){ctx.roundRect(x,y,w,h,r);return}
+if(style==='topround'){ctx.roundRect(x,y,w,h,[r,r,0,0]);return}
+if(style==='bottomround'){ctx.roundRect(x,y,w,h,[0,0,r,r]);return}
+if(style==='custom'){ctx.roundRect(x,y,w,h,[+$('cornerTL').value,+$('cornerTR').value,+$('cornerBR').value,+$('cornerBL').value]);return}
+if(style==='cut'||style==='bevel'){
+let tl=r,tr=style==='bevel'?Math.min(150,r*1.6):r,br=r,bl=style==='bevel'?0:r;
+ctx.moveTo(x+tl,y);ctx.lineTo(x+w-tr,y);ctx.lineTo(x+w,y+tr);
+ctx.lineTo(x+w,y+h-br);ctx.lineTo(x+w-br,y+h);
+ctx.lineTo(x+bl,y+h);ctx.lineTo(x,y+h-bl);ctx.lineTo(x,y+tl);ctx.closePath();return
+}
+ctx.roundRect(x,y,w,h,r);
+}
+function banner(){const y=+$('bannerY').value;ctx.save();ctx.globalAlpha=+$('opacity').value/100;ctx.fillStyle=$('bannerColor').value;
+ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=+$('bannerShadow').value;ctx.shadowOffsetY=8;
+bannerPath(95,y,1580,300);ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+ctx.lineWidth=+$('bannerStroke').value;ctx.strokeStyle=$('bannerStrokeColor').value;if(ctx.lineWidth)ctx.stroke();ctx.restore();ctx.save();ctx.fillStyle=$('accentColor').value;ctx.textAlign='right';ctx.font='bold 52px Arial';ctx.fillText($('eyebrow').value,1605,y+76);ctx.fillStyle=$('textColor').value;ctx.font=`bold ${$('fontSize').value}px Arial`;ctx.fillText($('headline').value,1605,y+175,1050);ctx.fillStyle=$('accentColor').value;ctx.font='bold 62px Arial';ctx.fillText($('subtitle').value,1605,y+263,1050);ctx.restore()}
+function animateLayer(l,t){
+let a=l.anim||{},total=clamp(+$('duration').value||6,2,30),defaultDur=clamp(+$('transition').value||.7,.1,3);
+let ent=a.entrance||'inherit',ex=a.exit||'inherit';
+if(ent==='inherit')ent=({slide:'left',rise:'up',fade:'fade',zoom:'zoom',none:'none'})[$('entrance').value]||'none';
+if(ex==='inherit')ex=({slide:'right',drop:'down',fade:'fade',none:'none'})[$('exit').value]||'none';
+let start=a.start??0,ind=a.inDuration??defaultDur,exitStart=a.exitStart??(total-defaultDur),outd=a.outDuration??defaultDur;
+let entranceProgress=clamp((t-start)/Math.max(.1,ind),0,1),exitProgress=clamp((t-exitStart)/Math.max(.1,outd),0,1);
+let ein=1-Math.pow(1-entranceProgress,3),eout=Math.pow(exitProgress,3);
+let dx=0,dy=0,scale=1,alpha=1;
+let g=groupTransform(),left=(l.x-960)*g.scale+960+g.x,top=(l.y-540)*g.scale+540+g.y;
+let radius=l.type==='text' ? Math.hypot((l.text||'').length*(l.fontSize||72)*(l.scale||1)*.4,(l.fontSize||72)*(l.scale||1)) : Math.hypot((l.w||0)*(l.scale||1)/2,(l.h||0)*(l.scale||1)/2);
+let margin=radius+100,offLeft=Math.max(0,(left+margin)/g.scale),offRight=Math.max(0,(1920-left+margin)/g.scale),offUp=Math.max(0,(top+margin)/g.scale),offDown=Math.max(0,(1080-top+margin)/g.scale);
+
+if(ent!=='none'){if(ent==='fade')alpha*=ein;if(ent==='left')dx-=offLeft*(1-ein);if(ent==='right')dx+=offRight*(1-ein);if(ent==='up')dy+=offDown*(1-ein);if(ent==='down')dy-=offUp*(1-ein);if(ent==='zoom')scale*=.15+.85*ein;if(ent==='pop')scale*=.2+.8*(1+1.7*Math.pow(entranceProgress-1,3)+.7*Math.pow(entranceProgress-1,2));}
+if(ex!=='none'){if(ex==='fade')alpha*=1-exitProgress;if(ex==='left')dx-=offLeft*eout;if(ex==='right')dx+=offRight*eout;if(ex==='up')dy-=offUp*eout;if(ex==='down')dy+=offDown*eout;if(ex==='zoom')scale*=1-.85*exitProgress;}
+return {dx,dy,scale:Math.max(0,scale),alpha:clamp(alpha,0,1)};
+}
+function groupTransform(){
+return {scale:+$('groupScale').value/100,x:+$('groupX').value,y:+$('groupY').value};
+}
+function toLocal(p){let g=groupTransform();return{x:960+(p.x-960-g.x)/g.scale,y:540+(p.y-540-g.y)/g.scale}}
+function draw(t=null,guide=true,videoMode=false){ctx.clearRect(0,0,1920,1080);
+if(videoMode){let bg=$('videoBackground').value,colors={green:'#00ff00',blue:'#0000ff',magenta:'#ff00ff'};if(colors[bg]){ctx.save();ctx.fillStyle=colors[bg];ctx.fillRect(0,0,1920,1080);ctx.restore()}}
+ctx.save();
+let g=groupTransform();ctx.translate(960+g.x,540+g.y);ctx.scale(g.scale,g.scale);ctx.translate(-960,-540);
+if(t!==null){let d=clamp(+$('duration').value||6,2,30),tr=clamp(+$('transition').value||.7,.1,3),e=Math.min(tr,d/2),p=t<e?t/e:t>d-e?(d-t)/e:1; p=clamp(p,0,1);const eased=1-(1-p)**3;
+let kind=t<e?$('entrance').value:t>d-e?$('exit').value:'none';
+if(kind==='slide'){
+let offset=t<e?-(1-eased)*5000:(1-eased)*5000;
+ctx.translate(offset,0);
+}
+if(kind==='rise')ctx.translate(0,(1-eased)*3500);
+if(kind==='drop')ctx.translate(0,(1-eased)*3500);
+if(kind==='zoom'){ctx.translate(960,900);ctx.scale(.7+.3*eased,.7+.3*eased);ctx.translate(-960,-900)}
+if(kind==='fade')ctx.globalAlpha=eased;
+}
+banner();ctx.restore();ctx.save();ctx.translate(960+g.x,540+g.y);ctx.scale(g.scale,g.scale);ctx.translate(-960,-540);for(let i=0;i<layers.length;i++){let l=layers[i];ctx.save();let anim=t===null?{dx:0,dy:0,scale:1,alpha:1}:animateLayer(l,t);ctx.globalAlpha*=l.opacity*anim.alpha;ctx.translate(l.x+anim.dx,l.y+anim.dy);ctx.scale(anim.scale,anim.scale);ctx.rotate(l.rotation*Math.PI/180);
+if(l.type==='text'){ctx.font=`bold ${l.fontSize*l.scale}px "${l.font}"`;ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.shadowColor=l.shadowColor;ctx.shadowBlur=l.shadow;ctx.shadowOffsetX=l.shadowX;ctx.shadowOffsetY=l.shadowY;
+if(l.stroke>0){ctx.lineWidth=l.stroke;ctx.strokeStyle=l.strokeColor;ctx.lineJoin='round';ctx.strokeText(l.text,0,0)}
+ctx.fillStyle=l.color;ctx.fillText(l.text,0,0);
+}else if(l.img?.complete){ctx.drawImage(l.img,-l.w*l.scale/2,-l.h*l.scale/2,l.w*l.scale,l.h*l.scale)}
+ctx.restore()}
+ctx.restore();
+if(guide&&$('guides').checked&&!recording&&t===null){ctx.save();ctx.strokeStyle='rgba(255,255,255,.25)';ctx.setLineDash([12,12]);ctx.strokeRect(96,54,1728,972);ctx.restore()}
+}
+function updateList(){const s=$('layers');s.innerHTML='';layers.forEach((l,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${i+1}: ${l.name}`;s.append(o)});selected=clamp(selected,0,layers.length-1);if(!layers.length)selected=-1;s.value=selected;syncSliders();draw()}
+const animIds={layerEntrance:'entrance',layerStart:'start',layerInDuration:'inDuration',layerExit:'exit',layerExitStart:'exitStart',layerOutDuration:'outDuration'};
+function syncSliders(){let l=layers[selected];$('scale').value=l?Math.round(l.scale*100):100;$('rotation').value=l?.rotation||0;$('imageOpacity').value=l?Math.round(l.opacity*100):100;
+for(let [id,key] of Object.entries(animIds)){$(id).disabled=!l;$(id).value=l?.anim?.[key]??({entrance:'inherit',start:0,inDuration:.7,exit:'inherit',exitStart:5.3,outDuration:.7}[key])}
+if(l?.type==='text'){for(let [id,key] of Object.entries({editText:'text',layerTextColor:'color',layerStrokeColor:'strokeColor',layerShadowColor:'shadowColor',layerFontSize:'fontSize',layerFont:'font',layerStroke:'stroke',layerShadow:'shadow',layerShadowX:'shadowX',layerShadowY:'shadowY'}))$(id).value=l[key]}}
+for(let [id,key] of Object.entries(animIds))$(id).addEventListener('input',()=>{let l=layers[selected];if(!l)return;l.anim=l.anim||{};l.anim[key]=['start','inDuration','exitStart','outDuration'].includes(key)?+$(id).value:$(id).value;draw()});
+$('applyAll').onclick=()=>{if(selected<0)return;let a={...layers[selected].anim};layers.forEach(l=>l.anim={...a});$('status').textContent='Animation settings copied to all layers.'};
+$('resetLayerAnim').onclick=()=>{if(selected<0)return;layers[selected].anim={entrance:'inherit',exit:'inherit'};syncSliders();draw()};
+$('scrub').oninput=()=>{stop();let t=+$('scrub').value;$('scrubLabel').textContent=t.toFixed(2)+' s';draw(t,false)};
+$('duration').addEventListener('input',()=>{$('scrub').max=$('duration').value});
+function addTextLayer(text,opts={}){let l={type:'text',name:'Text: '+text.slice(0,20),text,x:opts.x??960,y:opts.y??680,scale:opts.scale??1,rotation:opts.rotation??0,opacity:opts.opacity??1,color:opts.color??'#ffffff',fontSize:opts.fontSize??72,font:opts.font??'Arial',stroke:opts.stroke??0,strokeColor:opts.strokeColor??'#000000',shadow:opts.shadow??8,shadowColor:opts.shadowColor??'#000000',shadowX:opts.shadowX??4,shadowY:opts.shadowY??5,anim:opts.anim||{entrance:'inherit',exit:'inherit'}};layers.push(l);selected=layers.length-1;updateList()}
+$('addText').onclick=()=>{addTextLayer($('newText').value.trim()||'NEW TEXT');$('newText').value=''};
+for(let [id,key] of Object.entries({editText:'text',layerTextColor:'color',layerStrokeColor:'strokeColor',layerShadowColor:'shadowColor',layerFontSize:'fontSize',layerFont:'font',layerStroke:'stroke',layerShadow:'shadow',layerShadowX:'shadowX',layerShadowY:'shadowY'}))$(id).addEventListener('input',()=>{let l=layers[selected];if(!l||l.type!=='text')return;l[key]=['fontSize','stroke','shadow','shadowX','shadowY'].includes(key)?+$(id).value:$(id).value;l.name='Text: '+l.text.slice(0,20);$('layers').options[selected].textContent=`${selected+1}: ${l.name}`;draw()});
+const socialColors={youtube:'#FF0033',instagram:'#C13584',facebook:'#1877F2',tiktok:'#111111',twitch:'#9146FF',linkedin:'#0A66C2',x:'#111111',website:'#2274A5',email:'#D04C45'};
+function socialSVG(platform,style,color){
+let bg=style==='brand'?socialColors[platform]:(style==='white'?'#20252F':'transparent');
+let fg=style==='mono'?color:'#ffffff';
+const shapes={
+youtube:'<rect x="22" y="35" width="84" height="58" rx="16" fill="'+fg+'"/><path d="M56 48 L56 80 L84 64 Z" fill="'+bg+'"/>',
+instagram:'<rect x="31" y="31" width="66" height="66" rx="20" fill="none" stroke="'+fg+'" stroke-width="9"/><circle cx="64" cy="64" r="17" fill="none" stroke="'+fg+'" stroke-width="9"/><circle cx="86" cy="43" r="5" fill="'+fg+'"/>',
+facebook:'<path d="M76 110 V67 H91 L94 49 H76 V40 Q76 32 85 32 H95 V16 Q87 13 76 13 Q51 13 51 40 V49 H37 V67 H51 V110 Z" fill="'+fg+'"/>',
+tiktok:'<path d="M74 22 V77 C74 105 47 111 32 95 C14 75 29 49 52 51 V69 C39 66 32 82 41 90 C52 99 57 87 57 78 V22 Z M74 22 Q79 40 98 40 V58 Q82 58 74 48 Z" fill="'+fg+'"/>',
+twitch:'<path d="M25 24 H105 V79 L88 96 H69 L57 108 V96 H25 Z" fill="none" stroke="'+fg+'" stroke-width="8"/><path d="M57 48 V70 M81 48 V70" stroke="'+fg+'" stroke-width="9"/>',
+linkedin:'<rect x="25" y="48" width="16" height="52" fill="'+fg+'"/><circle cx="33" cy="30" r="9" fill="'+fg+'"/><path d="M55 48 H71 V56 Q79 45 92 48 Q107 51 107 70 V100 H91 V72 Q91 62 83 62 Q72 62 72 74 V100 H55 Z" fill="'+fg+'"/>',
+x:'<path d="M28 22 L49 22 L101 106 L80 106 Z M92 22 L34 106" fill="none" stroke="'+fg+'" stroke-width="10"/>',
+website:'<circle cx="64" cy="64" r="39" fill="none" stroke="'+fg+'" stroke-width="8"/><ellipse cx="64" cy="64" rx="17" ry="39" fill="none" stroke="'+fg+'" stroke-width="6"/><path d="M26 64 H102 M34 45 H94 M34 83 H94" stroke="'+fg+'" stroke-width="6"/>',
+email:'<rect x="21" y="36" width="86" height="59" rx="8" fill="none" stroke="'+fg+'" stroke-width="8"/><path d="M25 42 L64 72 L103 42" fill="none" stroke="'+fg+'" stroke-width="8"/>'
+};
+return '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">'+(style==='mono'?'':'<rect x="4" y="4" width="120" height="120" rx="24" fill="'+bg+'"/>')+shapes[platform]+'</svg>';
+}
+$('addSocial').onclick=async()=>{
+let platform=$('socialPlatform').value,svg=socialSVG(platform,$('socialStyle').value,$('socialColor').value);
+let data='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+await addImage(data,platform+' icon',{x:400,y:700,scale:1});
+$('status').textContent='Added '+platform+' icon. Drag to position or animate it as an independent layer.';
+};
+function addImage(data,name,opts={}){return new Promise(resolve=>{const img=new Image();img.onload=()=>{layers.push({type:'image',img,data,name,x:opts.x??410,y:opts.y??765,w:img.width,h:img.height,scale:opts.scale??Math.min(1,460/img.height,560/img.width),rotation:opts.rotation||0,opacity:opts.opacity??1,anim:opts.anim||{entrance:'inherit',exit:'inherit'}});selected=layers.length-1;updateList();resolve()};img.onerror=()=>resolve();img.src=data})}
+$('upload').onchange=async e=>{for(const f of e.target.files){let data=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)});await addImage(data,f.name)}e.target.value=''};
+ids.forEach(id=>$(id).addEventListener('input',()=>draw()));
+function updateGroupLabels(){$('groupScaleValue').textContent=$('groupScale').value+'%';$('groupXValue').textContent=$('groupX').value+' px';$('groupYValue').textContent=$('groupY').value+' px'}
+['groupScale','groupX','groupY'].forEach(id=>$(id).addEventListener('input',updateGroupLabels));
+function updateCornerControls(){
+$('cornerSizeValue').textContent=$('cornerSize').value+' px';
+$('customCornerControls').style.display=$('cornerStyle').value==='custom'?'block':'none';
+$('cornerSize').disabled=['square','pill','custom'].includes($('cornerStyle').value);
+}
+['cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL'].forEach(id=>$(id).addEventListener('input',updateCornerControls));
+updateCornerControls();
+$('resetGroup').onclick=()=>{$('groupScale').value=100;$('groupX').value=0;$('groupY').value=0;updateGroupLabels();draw()};
+updateGroupLabels();
+$('layers').onchange=e=>{selected=+e.target.value;syncSliders();draw()};
+['scale','rotation','imageOpacity'].forEach(id=>$(id).oninput=()=>{let l=layers[selected];if(!l)return;l.scale=+$('scale').value/100;l.rotation=+$('rotation').value;l.opacity=+$('imageOpacity').value/100;draw()});
+$('remove').onclick=()=>{if(selected<0)return;layers.splice(selected,1);updateList()};
+$('duplicate').onclick=()=>{if(selected<0)return;layers.push({...layers[selected],name:layers[selected].name+' copy',x:layers[selected].x+45,y:layers[selected].y+45});selected=layers.length-1;updateList()};
+function shift(delta){if(selected<0)return;let j=selected+delta;if(j<0||j>=layers.length)return;[layers[j],layers[selected]]=[layers[selected],layers[j]];selected=j;updateList()}
+$('front').onclick=()=>shift(1);$('back').onclick=()=>shift(-1);
+function pos(e){let r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*1920/r.width,y:(e.clientY-r.top)*1080/r.height}}
+function hit(l,p){if(l.type==='text'){let dx=p.x-l.x,dy=p.y-l.y,a=-l.rotation*Math.PI/180,x=dx*Math.cos(a)-dy*Math.sin(a),y=dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(x)<=(l.text.length*l.fontSize*l.scale*.38+20)&&Math.abs(y)<=l.fontSize*l.scale*.7}let dx=p.x-l.x,dy=p.y-l.y,a=-l.rotation*Math.PI/180,x=dx*Math.cos(a)-dy*Math.sin(a),y=dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(x)<=l.w*l.scale/2&&Math.abs(y)<=l.h*l.scale/2}
+c.onpointerdown=e=>{if(playing||recording)return;let p=toLocal(pos(e));for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){selected=i;drag={x:p.x-layers[i].x,y:p.y-layers[i].y};c.setPointerCapture(e.pointerId);updateList();return}selected=-1;updateList()};
+c.onpointermove=e=>{if(!drag||selected<0)return;let p=toLocal(pos(e));layers[selected].x=p.x-drag.x;layers[selected].y=p.y-drag.y;draw()};
+c.onpointerup=c.onpointercancel=()=>drag=null;
+c.onwheel=e=>{if(selected<0)return;e.preventDefault();layers[selected].scale=clamp(layers[selected].scale*(e.deltaY<0?1.05:.95),.05,4);syncSliders();draw()},{passive:false};
+function download(blob,name){let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
+$('png').onclick=()=>{draw(null,false);c.toBlob(b=>{if(b)download(b,'APAP-lower-third.png');draw()},'image/png')};
+$('save').onclick=()=>{let data={version:2,settings:Object.fromEntries(ids.filter(x=>x!=='guides').map(id=>[id,$(id).value])),layers:layers.map(({img,...l})=>l)};download(new Blob([JSON.stringify(data)],{type:'application/json'}),'APAP-lower-third-project.json')};
+$('load').onclick=()=>$('projectFile').click();
+$('projectFile').onchange=async e=>{try{let d=JSON.parse(await e.target.files[0].text());layers=[];Object.entries(d.settings||{}).forEach(([k,v])=>{if($(k))$(k).value=v});updateGroupLabels();updateCornerControls();for(let l of d.layers||[]){if(l.type==='text')addTextLayer(l.text,l);else await addImage(l.data,l.name,l)}$('status').textContent='Project loaded.'}catch(err){$('status').textContent='Could not load project: '+err.message}e.target.value=''};
+function stop(){playing=false;cancelAnimationFrame(raf);draw()}
+$('stop').onclick=stop;
+$('play').onclick=()=>{stop();playing=true;let start=performance.now(),d=clamp(+$('duration').value||6,2,30);function frame(now){if(!playing)return;let t=(now-start)/1000;draw(Math.min(t,d),false);if(t<d)raf=requestAnimationFrame(frame);else stop()}raf=requestAnimationFrame(frame)};
+$('video').onclick=async()=>{if(recording)return;if(!c.captureStream||!window.MediaRecorder){$('status').textContent='This browser does not support canvas video recording. Try Chrome or Edge.';return}
+stop();let formats=['video/mp4;codecs=avc1.42E01E','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mime=formats.find(m=>MediaRecorder.isTypeSupported(m));if(!mime){$('status').textContent='No supported video recorder found.';return}
+recording=true;$('video').disabled=true;let d=clamp(+$('duration').value||6,2,30),stream=c.captureStream(30),chunks=[],rec;try{rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000})}catch(e){recording=false;$('video').disabled=false;$('status').textContent=e.message;return}
+rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.onstop=()=>{let type=rec.mimeType||mime,ext=type.includes('mp4')?'mp4':'webm';download(new Blob(chunks,{type}),`APAP-animated-lower-third-${$('videoBackground').value}.${ext}`);stream.getTracks().forEach(t=>t.stop());recording=false;$('video').disabled=false;$('status').textContent=`Video exported as ${ext.toUpperCase()}.`;draw()};
+rec.onerror=e=>{$('status').textContent='Recording error: '+(e.error?.message||'unknown');recording=false;$('video').disabled=false};
+draw(0,false,true);rec.start();$('status').textContent=`Recording ${d}s video… Please keep this tab visible.`;
+let start=performance.now();function frame(now){let t=Math.min((now-start)/1000,d);draw(t,false,true);if(t<d)requestAnimationFrame(frame);else setTimeout(()=>{if(rec.state!=='inactive')rec.stop()},120)}requestAnimationFrame(frame)
+};
+$('reset').onclick=()=>{layers=[];selected=-1;updateList();$('status').textContent='Reset. Upload a new image to begin.'};
+updateList();
+})();
+</script></body></html>
