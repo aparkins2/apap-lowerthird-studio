@@ -182,12 +182,17 @@ ctx.restore();
 return {x:t.x+textOffsets[key].x-w,y:t.y+textOffsets[key].y-h/2,w,h,right:t.x+textOffsets[key].x,base:t.y+textOffsets[key].y};
 }
 function hitBannerText(p){
+let best=null,bestDist=Infinity;
 for(const key of ['eyebrow','headline','subtitle']){
 const m=bannerTextMetrics(key);
-const pad=30;
-if(p.x>=m.x-pad&&p.x<=m.x+m.w+pad&&p.y>=m.y-pad&&p.y<=m.y+m.h+pad)return key;
+const pad=12;
+if(p.x>=m.x-pad&&p.x<=m.x+m.w+pad&&p.y>=m.y-pad&&p.y<=m.y+m.h+pad){
+const cx=m.x+m.w/2,cy=m.y+m.h/2;
+const dist=Math.hypot(p.x-cx,p.y-cy);
+if(dist<bestDist){bestDist=dist;best=key;}
 }
-return null;
+}
+return best;
 }
 function banner(){
 let b=bannerRect();
@@ -348,15 +353,23 @@ if(bannerSel){
 let h=hitBannerHandle(p);
 if(h){selectedText=null;resizeHandle={corner:h,startX:p.x,startY:p.y,orig:{...bannerRect()}};c.setPointerCapture(e.pointerId);return}
 }
-for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){bannerSel=false;selectedText=null;selected=i;drag={x:p.x-layers[i].x,y:p.y-layers[i].y};c.setPointerCapture(e.pointerId);updateList();return}
+for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){bannerSel=false;selectedText=null;$('bannerTextSelector').value='';selected=i;drag={x:p.x-layers[i].x,y:p.y-layers[i].y};c.setPointerCapture(e.pointerId);updateList();return}
+if(selectedText){
+const m=bannerTextMetrics(selectedText),pad=12;
+if(p.x>=m.x-pad&&p.x<=m.x+m.w+pad&&p.y>=m.y-pad&&p.y<=m.y+m.h+pad){
+const d=bannerTextDefaults(bannerRect());bannerSel=false;selected=-1;updateList();
+textDrag={x:p.x-(d[selectedText].x+textOffsets[selectedText].x),y:p.y-(d[selectedText].y+textOffsets[selectedText].y)};
+c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${selectedText} text. Drag to reposition.`;return;
+}
+}
 let textKey=hitBannerText(p);
-if(textKey){selectedText=textKey;bannerSel=false;selected=-1;updateList();const d=bannerTextDefaults(bannerRect());textDrag={x:p.x-(d[textKey].x+textOffsets[textKey].x),y:p.y-(d[textKey].y+textOffsets[textKey].y)};c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${textKey} text. Drag to reposition.`;return}
+if(textKey){selectedText=textKey;$('bannerTextSelector').value=textKey;bannerSel=false;selected=-1;updateList();const d=bannerTextDefaults(bannerRect());textDrag={x:p.x-(d[textKey].x+textOffsets[textKey].x),y:p.y-(d[textKey].y+textOffsets[textKey].y)};c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${textKey} text. Drag to reposition.`;return}
 if(hitBannerBody(p)){
-bannerSel=true;selectedText=null;selected=-1;updateList();
+bannerSel=true;selectedText=null;$('bannerTextSelector').value='';selected=-1;updateList();
 bannerDrag={x:p.x-bannerRect().x,y:p.y-bannerRect().y,startX:p.x,startY:p.y,orig:{...bannerRect()}};
 c.setPointerCapture(e.pointerId);return;
 }
-bannerSel=false;selectedText=null;selected=-1;updateList();
+bannerSel=false;selectedText=null;$('bannerTextSelector').value='';selected=-1;updateList();
 };
 c.onpointermove=e=>{
 if(textDrag&&selectedText){
