@@ -57,7 +57,9 @@ button:hover{background:#477bc0}button:disabled{opacity:.45;cursor:default}
 </div>
 <label>Banner opacity</label><input type="range" id="opacity" min="0" max="100" value="95">
 <label>Headline size</label><input type="range" id="fontSize" min="35" max="130" value="79">
-<label>Banner vertical position</label><input type="range" id="bannerY" min="0" max="900" value="710">
+<div class="row"><div style="flex:1"><label>Banner X</label><input type="range" id="bannerX" min="0" max="1920" step="1" value="95"></div><div style="flex:1"><label>Y</label><input type="range" id="bannerY" min="0" max="900" step="1" value="710"></div></div>
+<div class="row"><div style="flex:1"><label>Width</label><input type="range" id="bannerW" min="300" max="1920" step="5" value="1580"></div><div style="flex:1"><label>Height</label><input type="range" id="bannerH" min="80" max="600" step="5" value="300"></div></div>
+<p class="hint">Click the banner on the canvas to select it, then drag the green corner handles to resize width and height. Drag the banner body to move it.</p>
 </section>
 <section><h2>Images &amp; layers</h2>
 <label>Upload photo / logo (PNG transparency supported)</label><input type="file" id="upload" accept="image/*" multiple>
@@ -130,15 +132,18 @@ button:hover{background:#477bc0}button:disabled{opacity:.45;cursor:default}
 </section></aside>
 <div class="stage"><h2>1920 × 1080 preview</h2><canvas id="canvas" width="1920" height="1080"></canvas>
 <div class="toolbar row"><button id="reset">Reset example</button><label style="flex:3"><input id="guides" type="checkbox" checked> Show safe-area guides (not exported)</label></div>
-<div id="status">Ready. Upload an image and drag it to position.</div>
-<p class="hint">Tip: select an image by clicking it. Drag to move. Mouse wheel over selected image changes its scale. Images and text remain editable when you save a project.</p></div>
+<div id="status">Ready. Upload an image and drag it to position, or click the banner to resize it.</div>
+<p class="hint">Tip: select an image by clicking it. Drag to move. Mouse wheel over selected image changes its scale. Click the banner box to select it; drag the green handles to resize, or drag the banner body to move.</p></div>
 </main>
 <script>
 (()=>{
 const c=document.getElementById('canvas'),ctx=c.getContext('2d'),$=id=>document.getElementById(id);
 let layers=[],selected=-1,drag=null,playing=false,raf=0,recording=false;
-const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','bannerY','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground'];
+let bannerSel=false,bannerDrag=null,resizeHandle=null;
+const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground','bannerX','bannerY','bannerW','bannerH'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+function bannerRect(){return{x:+$('bannerX').value,y:+$('bannerY').value,w:+$('bannerW').value,h:+$('bannerH').value}}
+function setBannerRect(b){$('bannerX').value=Math.round(b.x);$('bannerY').value=Math.round(b.y);$('bannerW').value=Math.round(b.w);$('bannerH').value=Math.round(b.h)}
 function bannerPath(x,y,w,h){
 let style=$('cornerStyle').value,r=+$('cornerSize').value;
 ctx.beginPath();
@@ -156,10 +161,33 @@ ctx.lineTo(x+bl,y+h);ctx.lineTo(x,y+h-bl);ctx.lineTo(x,y+tl);ctx.closePath();ret
 }
 ctx.roundRect(x,y,w,h,r);
 }
-function banner(){const y=+$('bannerY').value;ctx.save();ctx.globalAlpha=+$('opacity').value/100;ctx.fillStyle=$('bannerColor').value;
+function banner(){
+let b=bannerRect();
+ctx.save();ctx.globalAlpha=+$('opacity').value/100;ctx.fillStyle=$('bannerColor').value;
 ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=+$('bannerShadow').value;ctx.shadowOffsetY=8;
-bannerPath(95,y,1580,300);ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-ctx.lineWidth=+$('bannerStroke').value;ctx.strokeStyle=$('bannerStrokeColor').value;if(ctx.lineWidth)ctx.stroke();ctx.restore();ctx.save();ctx.fillStyle=$('accentColor').value;ctx.textAlign='right';ctx.font='bold 52px Arial';ctx.fillText($('eyebrow').value,1605,y+76);ctx.fillStyle=$('textColor').value;ctx.font=`bold ${$('fontSize').value}px Arial`;ctx.fillText($('headline').value,1605,y+175,1050);ctx.fillStyle=$('accentColor').value;ctx.font='bold 62px Arial';ctx.fillText($('subtitle').value,1605,y+263,1050);ctx.restore()}
+bannerPath(b.x,b.y,b.w,b.h);ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+ctx.lineWidth=+$('bannerStroke').value;ctx.strokeStyle=$('bannerStrokeColor').value;if(ctx.lineWidth)ctx.stroke();ctx.restore();ctx.save();
+let rightX=b.x+b.w-70,textMaxW=b.w-140;
+ctx.fillStyle=$('accentColor').value;ctx.textAlign='right';ctx.font='bold 52px Arial';ctx.fillText($('eyebrow').value,rightX,b.y+b.h*0.25);
+ctx.fillStyle=$('textColor').value;ctx.font=`bold ${$('fontSize').value}px Arial`;ctx.fillText($('headline').value,rightX,b.y+b.h*0.58,textMaxW);
+ctx.fillStyle=$('accentColor').value;ctx.font='bold 62px Arial';ctx.fillText($('subtitle').value,rightX,b.y+b.h*0.87,textMaxW);
+ctx.restore()}
+function drawBannerHandles(){
+if(!bannerSel||recording)return;
+const b=bannerRect(),s=14;
+ctx.save();ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.setLineDash([]);
+const corners=[{x:b.x,y:b.y},{x:b.x+b.w,y:b.y},{x:b.x+b.w,y:b.y+b.h},{x:b.x,y:b.y+b.h}];
+ctx.fillStyle='#4ade80';
+for(const p of corners){ctx.beginPath();ctx.rect(p.x-s/2,p.y-s/2,s,s);ctx.fill();ctx.stroke();}
+ctx.restore();
+}
+function hitBannerHandle(p){
+const b=bannerRect(),s=20;
+const corners=[{x:b.x,y:b.y,c:'tl'},{x:b.x+b.w,y:b.y,c:'tr'},{x:b.x+b.w,y:b.y+b.h,c:'br'},{x:b.x,y:b.y+b.h,c:'bl'}];
+for(const h of corners){if(Math.abs(p.x-h.x)<=s/2&&Math.abs(p.y-h.y)<=s/2)return h.c}
+return null;
+}
+function hitBannerBody(p){const b=bannerRect();return p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h}
 function animateLayer(l,t){
 let a=l.anim||{},total=clamp(+$('duration').value||6,2,30),defaultDur=clamp(+$('transition').value||.7,.1,3);
 let ent=a.entrance||'inherit',ex=a.exit||'inherit';
@@ -196,7 +224,9 @@ if(kind==='drop')ctx.translate(0,(1-eased)*3500);
 if(kind==='zoom'){ctx.translate(960,900);ctx.scale(.7+.3*eased,.7+.3*eased);ctx.translate(-960,-900)}
 if(kind==='fade')ctx.globalAlpha=eased;
 }
-banner();ctx.restore();ctx.save();ctx.translate(960+g.x,540+g.y);ctx.scale(g.scale,g.scale);ctx.translate(-960,-540);for(let i=0;i<layers.length;i++){let l=layers[i];ctx.save();let anim=t===null?{dx:0,dy:0,scale:1,alpha:1}:animateLayer(l,t);ctx.globalAlpha*=l.opacity*anim.alpha;ctx.translate(l.x+anim.dx,l.y+anim.dy);ctx.scale(anim.scale,anim.scale);ctx.rotate(l.rotation*Math.PI/180);
+banner();
+if(t===null&&!videoMode)drawBannerHandles();
+ctx.restore();ctx.save();ctx.translate(960+g.x,540+g.y);ctx.scale(g.scale,g.scale);ctx.translate(-960,-540);for(let i=0;i<layers.length;i++){let l=layers[i];ctx.save();let anim=t===null?{dx:0,dy:0,scale:1,alpha:1}:animateLayer(l,t);ctx.globalAlpha*=l.opacity*anim.alpha;ctx.translate(l.x+anim.dx,l.y+anim.dy);ctx.scale(anim.scale,anim.scale);ctx.rotate(l.rotation*Math.PI/180);
 if(l.type==='text'){ctx.font=`bold ${l.fontSize*l.scale}px "${l.font}"`;ctx.textAlign='center';ctx.textBaseline='middle';
 ctx.shadowColor=l.shadowColor;ctx.shadowBlur=l.shadow;ctx.shadowOffsetX=l.shadowX;ctx.shadowOffsetY=l.shadowY;
 if(l.stroke>0){ctx.lineWidth=l.stroke;ctx.strokeStyle=l.strokeColor;ctx.lineJoin='round';ctx.strokeText(l.text,0,0)}
@@ -244,7 +274,6 @@ $('status').textContent='Added '+platform+' icon. Drag to position or animate it
 };
 function addImage(data,name,opts={}){return new Promise(resolve=>{const img=new Image();img.onload=()=>{layers.push({type:'image',img,data,name,x:opts.x??410,y:opts.y??765,w:img.width,h:img.height,scale:opts.scale??Math.min(1,460/img.height,560/img.width),rotation:opts.rotation||0,opacity:opts.opacity??1,anim:opts.anim||{entrance:'inherit',exit:'inherit'}});selected=layers.length-1;updateList();resolve()};img.onerror=()=>resolve();img.src=data})}
 $('upload').onchange=async e=>{for(const f of e.target.files){let data=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)});await addImage(data,f.name)}e.target.value=''};
-ids.forEach(id=>$(id).addEventListener('input',()=>draw()));
 function updateGroupLabels(){$('groupScaleValue').textContent=$('groupScale').value+'%';$('groupXValue').textContent=$('groupX').value+' px';$('groupYValue').textContent=$('groupY').value+' px'}
 ['groupScale','groupX','groupY'].forEach(id=>$(id).addEventListener('input',updateGroupLabels));
 function updateCornerControls(){
@@ -256,7 +285,7 @@ $('cornerSize').disabled=['square','pill','custom'].includes($('cornerStyle').va
 updateCornerControls();
 $('resetGroup').onclick=()=>{$('groupScale').value=100;$('groupX').value=0;$('groupY').value=0;updateGroupLabels();draw()};
 updateGroupLabels();
-$('layers').onchange=e=>{selected=+e.target.value;syncSliders();draw()};
+$('layers').onchange=e=>{selected=+e.target.value;bannerSel=false;syncSliders();draw()};
 ['scale','rotation','imageOpacity'].forEach(id=>$(id).oninput=()=>{let l=layers[selected];if(!l)return;l.scale=+$('scale').value/100;l.rotation=+$('rotation').value;l.opacity=+$('imageOpacity').value/100;draw()});
 $('remove').onclick=()=>{if(selected<0)return;layers.splice(selected,1);updateList()};
 $('duplicate').onclick=()=>{if(selected<0)return;layers.push({...layers[selected],name:layers[selected].name+' copy',x:layers[selected].x+45,y:layers[selected].y+45});selected=layers.length-1;updateList()};
@@ -264,15 +293,51 @@ function shift(delta){if(selected<0)return;let j=selected+delta;if(j<0||j>=layer
 $('front').onclick=()=>shift(1);$('back').onclick=()=>shift(-1);
 function pos(e){let r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*1920/r.width,y:(e.clientY-r.top)*1080/r.height}}
 function hit(l,p){if(l.type==='text'){let dx=p.x-l.x,dy=p.y-l.y,a=-l.rotation*Math.PI/180,x=dx*Math.cos(a)-dy*Math.sin(a),y=dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(x)<=(l.text.length*l.fontSize*l.scale*.38+20)&&Math.abs(y)<=l.fontSize*l.scale*.7}let dx=p.x-l.x,dy=p.y-l.y,a=-l.rotation*Math.PI/180,x=dx*Math.cos(a)-dy*Math.sin(a),y=dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(x)<=l.w*l.scale/2&&Math.abs(y)<=l.h*l.scale/2}
-c.onpointerdown=e=>{if(playing||recording)return;let p=toLocal(pos(e));for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){selected=i;drag={x:p.x-layers[i].x,y:p.y-layers[i].y};c.setPointerCapture(e.pointerId);updateList();return}selected=-1;updateList()};
-c.onpointermove=e=>{if(!drag||selected<0)return;let p=toLocal(pos(e));layers[selected].x=p.x-drag.x;layers[selected].y=p.y-drag.y;draw()};
-c.onpointerup=c.onpointercancel=()=>drag=null;
+ids.forEach(id=>$(id).addEventListener('input',()=>{if(id==='duration')$('scrub').max=$(id).value;draw()}));
+c.onpointerdown=e=>{
+if(playing||recording)return;
+let p=toLocal(pos(e));
+if(bannerSel){
+let h=hitBannerHandle(p);
+if(h){resizeHandle={corner:h,startX:p.x,startY:p.y,orig:{...bannerRect()}};c.setPointerCapture(e.pointerId);return}
+}
+if(hitBannerBody(p)){
+bannerSel=true;selected=-1;updateList();
+bannerDrag={x:p.x-bannerRect().x,y:p.y-bannerRect().y,startX:p.x,startY:p.y,orig:{...bannerRect()}};
+c.setPointerCapture(e.pointerId);return;
+}
+bannerSel=false;
+for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){selected=i;drag={x:p.x-layers[i].x,y:p.y-layers[i].y};c.setPointerCapture(e.pointerId);updateList();return}
+selected=-1;updateList();
+};
+c.onpointermove=e=>{
+if(resizeHandle){
+let p=toLocal(pos(e)),o=resizeHandle.orig,dx=p.x-resizeHandle.startX,dy=p.y-resizeHandle.startY;
+let x=o.x,y=o.y,w=o.w,h=o.h;
+if(resizeHandle.corner.includes('l')){x=clamp(o.x+dx,0,1920);w=clamp(o.w-(x-o.x),300,1920-x)}
+if(resizeHandle.corner.includes('r')){w=clamp(o.w+dx,300,1920-x)}
+if(resizeHandle.corner.includes('t')){y=clamp(o.y+dy,0,1080);h=clamp(o.h-(y-o.y),80,1080-y)}
+if(resizeHandle.corner.includes('b')){h=clamp(o.h+dy,80,1080-y)}
+setBannerRect({x,y,w,h});draw();return;
+}
+if(bannerDrag){
+let p=toLocal(pos(e));
+setBannerRect({
+x:clamp(p.x-bannerDrag.x,0,1920-bannerRect().w),
+y:clamp(p.y-bannerDrag.y,0,1080-bannerRect().h),
+w:bannerRect().w,h:bannerRect().h
+});draw();return;
+}
+if(!drag||selected<0)return;
+let p=toLocal(pos(e));layers[selected].x=p.x-drag.x;layers[selected].y=p.y-drag.y;draw()
+};
+c.onpointerup=c.onpointercancel=()=>{drag=null;bannerDrag=null;resizeHandle=null;};
 c.onwheel=e=>{if(selected<0)return;e.preventDefault();layers[selected].scale=clamp(layers[selected].scale*(e.deltaY<0?1.05:.95),.05,4);syncSliders();draw()},{passive:false};
 function download(blob,name){let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000)}
 $('png').onclick=()=>{draw(null,false);c.toBlob(b=>{if(b)download(b,'APAP-lower-third.png');draw()},'image/png')};
 $('save').onclick=()=>{let data={version:2,settings:Object.fromEntries(ids.filter(x=>x!=='guides').map(id=>[id,$(id).value])),layers:layers.map(({img,...l})=>l)};download(new Blob([JSON.stringify(data)],{type:'application/json'}),'APAP-lower-third-project.json')};
 $('load').onclick=()=>$('projectFile').click();
-$('projectFile').onchange=async e=>{try{let d=JSON.parse(await e.target.files[0].text());layers=[];Object.entries(d.settings||{}).forEach(([k,v])=>{if($(k))$(k).value=v});updateGroupLabels();updateCornerControls();for(let l of d.layers||[]){if(l.type==='text')addTextLayer(l.text,l);else await addImage(l.data,l.name,l)}$('status').textContent='Project loaded.'}catch(err){$('status').textContent='Could not load project: '+err.message}e.target.value=''};
+$('projectFile').onchange=async e=>{try{let d=JSON.parse(await e.target.files[0].text());layers=[];Object.entries(d.settings||{}).forEach(([k,v])=>{if($(k))$(k).value=v});updateGroupLabels();updateCornerControls();setBannerRect(bannerRect());for(let l of d.layers||[]){if(l.type==='text')addTextLayer(l.text,l);else await addImage(l.data,l.name,l)}$('status').textContent='Project loaded.'}catch(err){$('status').textContent='Could not load project: '+err.message}e.target.value=''};
 function stop(){playing=false;cancelAnimationFrame(raf);draw()}
 $('stop').onclick=stop;
 $('play').onclick=()=>{stop();playing=true;let start=performance.now(),d=clamp(+$('duration').value||6,2,30);function frame(now){if(!playing)return;let t=(now-start)/1000;draw(Math.min(t,d),false);if(t<d)raf=requestAnimationFrame(frame);else stop()}raf=requestAnimationFrame(frame)};
@@ -284,7 +349,7 @@ rec.onerror=e=>{$('status').textContent='Recording error: '+(e.error?.message||'
 draw(0,false,true);rec.start();$('status').textContent=`Recording ${d}s video… Please keep this tab visible.`;
 let start=performance.now();function frame(now){let t=Math.min((now-start)/1000,d);draw(t,false,true);if(t<d)requestAnimationFrame(frame);else setTimeout(()=>{if(rec.state!=='inactive')rec.stop()},120)}requestAnimationFrame(frame)
 };
-$('reset').onclick=()=>{layers=[];selected=-1;updateList();$('status').textContent='Reset. Upload a new image to begin.'};
+$('reset').onclick=()=>{layers=[];selected=-1;bannerSel=false;updateList();$('status').textContent='Reset. Upload an image to begin.'};
 updateList();
 })();
 </script></body></html>
