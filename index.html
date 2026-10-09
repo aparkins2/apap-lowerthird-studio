@@ -56,6 +56,8 @@ button:hover{background:#477bc0}button:disabled{opacity:.45;cursor:default}
 <label>Bottom left</label><input id="cornerBL" type="range" min="0" max="150" value="42">
 </div>
 <label>Banner opacity</label><input type="range" id="opacity" min="0" max="100" value="95">
+<label>Select banner text to move</label>
+<select id="bannerTextSelector"><option value="">— None —</option><option value="eyebrow">Eyebrow (ALL NEW)</option><option value="headline">Headline (Sister Wives)</option><option value="subtitle">Subtitle (SUNDAYS 10p)</option></select>
 <label>Headline size</label><input type="range" id="fontSize" min="35" max="130" value="79">
 <div class="row"><div style="flex:1"><label>Banner X</label><input type="range" id="bannerX" min="0" max="1920" step="1" value="95"></div><div style="flex:1"><label>Y</label><input type="range" id="bannerY" min="0" max="900" step="1" value="710"></div></div>
 <div class="row"><div style="flex:1"><label>Width</label><input type="range" id="bannerW" min="300" max="1920" step="5" value="1580"></div><div style="flex:1"><label>Height</label><input type="range" id="bannerH" min="80" max="600" step="5" value="300"></div></div>
@@ -143,7 +145,7 @@ let layers=[],selected=-1,drag=null,playing=false,raf=0,recording=false;
 let bannerSel=false,bannerDrag=null,resizeHandle=null;
 let selectedText=null,textDrag=null;
 let textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};
-const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground','bannerX','bannerY','bannerW','bannerH'];
+const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground','bannerX','bannerY','bannerW','bannerH','bannerTextSelector'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function bannerRect(){return{x:+$('bannerX').value,y:+$('bannerY').value,w:+$('bannerW').value,h:+$('bannerH').value}}
 function setBannerRect(b){$('bannerX').value=Math.round(b.x);$('bannerY').value=Math.round(b.y);$('bannerW').value=Math.round(b.w);$('bannerH').value=Math.round(b.h)}
@@ -182,7 +184,8 @@ return {x:t.x+textOffsets[key].x-w,y:t.y+textOffsets[key].y-h/2,w,h,right:t.x+te
 function hitBannerText(p){
 for(const key of ['eyebrow','headline','subtitle']){
 const m=bannerTextMetrics(key);
-if(p.x>=m.x&&p.x<=m.x+m.w&&p.y>=m.y&&p.y<=m.y+m.h)return key;
+const pad=30;
+if(p.x>=m.x-pad&&p.x<=m.x+m.w+pad&&p.y>=m.y-pad&&p.y<=m.y+m.h+pad)return key;
 }
 return null;
 }
@@ -215,9 +218,12 @@ function drawTextSelection(){
 if(!selectedText||recording)return;
 const m=bannerTextMetrics(selectedText);
 ctx.save();ctx.strokeStyle='#4ade80';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+ctx.fillStyle='rgba(74,222,128,.15)';ctx.fillRect(m.x,m.y,m.w,m.h);
 ctx.strokeRect(m.x,m.y,m.w,m.h);
 ctx.setLineDash([]);ctx.fillStyle='#4ade80';
 ctx.beginPath();ctx.rect(m.x+m.w-6,m.y+m.h-6,12,12);ctx.fill();ctx.stroke();
+ctx.fillStyle='#4ade80';ctx.font='bold 24px Arial';ctx.textAlign='left';ctx.textBaseline='top';
+ctx.fillText(selectedText.toUpperCase()+' TEXT',m.x,m.y-28);
 ctx.restore();
 }
 function hitBannerHandle(p){
@@ -323,7 +329,8 @@ $('cornerSize').disabled=['square','pill','custom'].includes($('cornerStyle').va
 ['cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL'].forEach(id=>$(id).addEventListener('input',updateCornerControls));
 updateCornerControls();
 $('resetGroup').onclick=()=>{$('groupScale').value=100;$('groupX').value=0;$('groupY').value=0;updateGroupLabels();draw()};
-$('resetTextPositions').onclick=()=>{textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};selectedText=null;draw();$('status').textContent='Text positions reset.'};
+$('bannerTextSelector').onchange=e=>{selectedText=e.target.value||null;bannerSel=false;selected=-1;updateList();draw();if(selectedText)$('status').textContent=`Selected ${selectedText} text. Drag it on the canvas.`};
+$('resetTextPositions').onclick=()=>{textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};selectedText=null;$('bannerTextSelector').value='';draw();$('status').textContent='Text positions reset.'};
 updateGroupLabels();
 $('layers').onchange=e=>{selected=+e.target.value;bannerSel=false;selectedText=null;syncSliders();draw()};
 ['scale','rotation','imageOpacity'].forEach(id=>$(id).oninput=()=>{let l=layers[selected];if(!l)return;l.scale=+$('scale').value/100;l.rotation=+$('rotation').value;l.opacity=+$('imageOpacity').value/100;draw()});
@@ -396,7 +403,7 @@ rec.onerror=e=>{$('status').textContent='Recording error: '+(e.error?.message||'
 draw(0,false,true);rec.start();$('status').textContent=`Recording ${d}s video… Please keep this tab visible.`;
 let start=performance.now();function frame(now){let t=Math.min((now-start)/1000,d);draw(t,false,true);if(t<d)requestAnimationFrame(frame);else setTimeout(()=>{if(rec.state!=='inactive')rec.stop()},120)}requestAnimationFrame(frame)
 };
-$('reset').onclick=()=>{layers=[];selected=-1;bannerSel=false;selectedText=null;textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};updateList();$('status').textContent='Reset. Upload an image to begin.'};
+$('reset').onclick=()=>{layers=[];selected=-1;bannerSel=false;selectedText=null;$('bannerTextSelector').value='';textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};updateList();$('status').textContent='Reset. Upload an image to begin.'};
 updateList();
 })();
 </script></body></html>
