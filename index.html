@@ -58,6 +58,10 @@ button:hover{background:#477bc0}button:disabled{opacity:.45;cursor:default}
 <label>Banner opacity</label><input type="range" id="opacity" min="0" max="100" value="95">
 <label>Select banner text to move</label>
 <select id="bannerTextSelector"><option value="">— None —</option><option value="eyebrow">Eyebrow (ALL NEW)</option><option value="headline">Headline (Sister Wives)</option><option value="subtitle">Subtitle (SUNDAYS 10p)</option></select>
+<div id="bannerTextOffsetControls" style="display:none">
+<div class="row"><div style="flex:1"><label>Text X offset</label><input type="range" id="textOffsetX" min="-500" max="500" step="1" value="0"></div><div style="flex:1"><label>Text Y offset</label><input type="range" id="textOffsetY" min="-300" max="300" step="1" value="0"></div></div>
+<div class="row"><button id="nudgeLeft">←</button><button id="nudgeRight">→</button><button id="nudgeUp">↑</button><button id="nudgeDown">↓</button></div>
+</div>
 <label>Headline size</label><input type="range" id="fontSize" min="35" max="130" value="79">
 <div class="row"><div style="flex:1"><label>Banner X</label><input type="range" id="bannerX" min="0" max="1920" step="1" value="95"></div><div style="flex:1"><label>Y</label><input type="range" id="bannerY" min="0" max="900" step="1" value="710"></div></div>
 <div class="row"><div style="flex:1"><label>Width</label><input type="range" id="bannerW" min="300" max="1920" step="5" value="1580"></div><div style="flex:1"><label>Height</label><input type="range" id="bannerH" min="80" max="600" step="5" value="300"></div></div>
@@ -145,7 +149,7 @@ let layers=[],selected=-1,drag=null,playing=false,raf=0,recording=false;
 let bannerSel=false,bannerDrag=null,resizeHandle=null;
 let selectedText=null,textDrag=null;
 let textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};
-const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground','bannerX','bannerY','bannerW','bannerH','bannerTextSelector'];
+const ids=['eyebrow','headline','subtitle','bannerColor','accentColor','textColor','opacity','fontSize','entrance','exit','duration','transition','guides','bannerStroke','bannerStrokeColor','bannerShadow','groupScale','groupX','groupY','cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL','videoBackground','bannerX','bannerY','bannerW','bannerH'];
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function bannerRect(){return{x:+$('bannerX').value,y:+$('bannerY').value,w:+$('bannerW').value,h:+$('bannerH').value}}
 function setBannerRect(b){$('bannerX').value=Math.round(b.x);$('bannerY').value=Math.round(b.y);$('bannerW').value=Math.round(b.w);$('bannerH').value=Math.round(b.h)}
@@ -334,8 +338,20 @@ $('cornerSize').disabled=['square','pill','custom'].includes($('cornerStyle').va
 ['cornerStyle','cornerSize','cornerTL','cornerTR','cornerBR','cornerBL'].forEach(id=>$(id).addEventListener('input',updateCornerControls));
 updateCornerControls();
 $('resetGroup').onclick=()=>{$('groupScale').value=100;$('groupX').value=0;$('groupY').value=0;updateGroupLabels();draw()};
-$('bannerTextSelector').onchange=e=>{selectedText=e.target.value||null;bannerSel=false;selected=-1;updateList();draw();if(selectedText)$('status').textContent=`Selected ${selectedText} text. Drag it on the canvas.`};
-$('resetTextPositions').onclick=()=>{textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};selectedText=null;$('bannerTextSelector').value='';draw();$('status').textContent='Text positions reset.'};
+function syncBannerTextOffsets(){
+const c=$('bannerTextOffsetControls');
+if(!selectedText){c.style.display='none';return}
+c.style.display='block';
+$('textOffsetX').value=textOffsets[selectedText].x;
+$('textOffsetY').value=textOffsets[selectedText].y;
+}
+$('bannerTextSelector').onchange=e=>{selectedText=e.target.value||null;bannerSel=false;selected=-1;updateList();syncBannerTextOffsets();draw();if(selectedText)$('status').textContent=`Selected ${selectedText} text. Drag it on the canvas or use the offset sliders.`};
+$('resetTextPositions').onclick=()=>{textOffsets={eyebrow:{x:0,y:0},headline:{x:0,y:0},subtitle:{x:0,y:0}};selectedText=null;$('bannerTextSelector').value='';syncBannerTextOffsets();draw();$('status').textContent='Text positions reset.'};
+['textOffsetX','textOffsetY'].forEach(id=>$(id).addEventListener('input',()=>{if(!selectedText)return;textOffsets[selectedText].x=+$('textOffsetX').value;textOffsets[selectedText].y=+$('textOffsetY').value;draw();}));
+$('nudgeLeft').onclick=()=>{if(!selectedText)return;textOffsets[selectedText].x-=5;syncBannerTextOffsets();draw()};
+$('nudgeRight').onclick=()=>{if(!selectedText)return;textOffsets[selectedText].x+=5;syncBannerTextOffsets();draw()};
+$('nudgeUp').onclick=()=>{if(!selectedText)return;textOffsets[selectedText].y-=5;syncBannerTextOffsets();draw()};
+$('nudgeDown').onclick=()=>{if(!selectedText)return;textOffsets[selectedText].y+=5;syncBannerTextOffsets();draw()};
 updateGroupLabels();
 $('layers').onchange=e=>{selected=+e.target.value;bannerSel=false;selectedText=null;syncSliders();draw()};
 ['scale','rotation','imageOpacity'].forEach(id=>$(id).oninput=()=>{let l=layers[selected];if(!l)return;l.scale=+$('scale').value/100;l.rotation=+$('rotation').value;l.opacity=+$('imageOpacity').value/100;draw()});
@@ -357,15 +373,15 @@ for(let i=layers.length-1;i>=0;i--)if(hit(layers[i],p)){bannerSel=false;selected
 if(selectedText){
 const m=bannerTextMetrics(selectedText),pad=12;
 if(p.x>=m.x-pad&&p.x<=m.x+m.w+pad&&p.y>=m.y-pad&&p.y<=m.y+m.h+pad){
-const d=bannerTextDefaults(bannerRect());bannerSel=false;selected=-1;updateList();
+const d=bannerTextDefaults(bannerRect());bannerSel=false;selected=-1;updateList();syncBannerTextOffsets();
 textDrag={x:p.x-(d[selectedText].x+textOffsets[selectedText].x),y:p.y-(d[selectedText].y+textOffsets[selectedText].y)};
 c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${selectedText} text. Drag to reposition.`;return;
 }
 }
 let textKey=hitBannerText(p);
-if(textKey){selectedText=textKey;$('bannerTextSelector').value=textKey;bannerSel=false;selected=-1;updateList();const d=bannerTextDefaults(bannerRect());textDrag={x:p.x-(d[textKey].x+textOffsets[textKey].x),y:p.y-(d[textKey].y+textOffsets[textKey].y)};c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${textKey} text. Drag to reposition.`;return}
+if(textKey){selectedText=textKey;$('bannerTextSelector').value=textKey;bannerSel=false;selected=-1;updateList();syncBannerTextOffsets();const d=bannerTextDefaults(bannerRect());textDrag={x:p.x-(d[textKey].x+textOffsets[textKey].x),y:p.y-(d[textKey].y+textOffsets[textKey].y)};c.setPointerCapture(e.pointerId);$('status').textContent=`Selected ${textKey} text. Drag to reposition.`;return}
 if(hitBannerBody(p)){
-bannerSel=true;selectedText=null;$('bannerTextSelector').value='';selected=-1;updateList();
+bannerSel=true;selectedText=null;$('bannerTextSelector').value='';syncBannerTextOffsets();selected=-1;updateList();
 bannerDrag={x:p.x-bannerRect().x,y:p.y-bannerRect().y,startX:p.x,startY:p.y,orig:{...bannerRect()}};
 c.setPointerCapture(e.pointerId);return;
 }
